@@ -1,0 +1,24 @@
+graph TD
+    REQ[LLM Call<br/>Request] --> DC{Daily Budget<br/>Remaining?}
+
+    DC -->|No| DP[Pause Until<br/>Midnight]
+    DC -->|Yes| WC{Weekly Budget<br/>Remaining?}
+
+    WC -->|No| WP[Pause Until<br/>Monday]
+    WC -->|Yes| GC{Goal Budget<br/>Remaining?}
+
+    GC -->|No| GP[Pause Goal<br/>Re-queue 5min]
+    GC -->|Yes| OC{Operation<br/>Under $25?}
+
+    OC -->|No| RJ[Reject Call]
+    OC -->|Yes| EX[Execute<br/>LLM Call]
+
+    EX --> TR[Track Cost<br/>Update Counters]
+    TR --> AL{Budget < 25%?}
+    AL -->|Yes| NT[Discord Alert]
+    AL -->|No| OK[Continue]
+
+    style REQ fill:#4a9eff,color:#fff
+    style EX fill:#2ecc71,color:#fff
+    style DP fill:#e74c3c,color:#fff
+    style GP fill:#ff9f43,color:#fff

@@ -1,0 +1,180 @@
+{
+  "edition": "2026-04",
+  "date": "2026-04-01",
+  "entries": [
+    {
+      "name": "Hybrid RAG (Vector + Keyword Search)",
+      "ring": "adopt",
+      "quadrant": "techniques",
+      "notes": "Combining vector and keyword search with reciprocal rank fusion consistently outperforms either alone."
+    },
+    {
+      "name": "Structured Output with JSON Schema Enforcement",
+      "ring": "adopt",
+      "quadrant": "techniques",
+      "notes": "Schema-enforced structured output eliminates parsing failures in agent-to-agent communication."
+    },
+    {
+      "name": "Stateless Iteration Workers",
+      "ring": "adopt",
+      "quadrant": "techniques",
+      "notes": "Run one iteration, persist all state, return. Crash-safe and rate-limit-resilient."
+    },
+    {
+      "name": "Tiered Memory with TTL",
+      "ring": "adopt",
+      "quadrant": "techniques",
+      "notes": "Permanent / 90-day / 30-day tiers with automatic Cosmos DB TTL cleanup."
+    },
+    {
+      "name": "Prompt Caching (Static Prefix Ordering)",
+      "ring": "adopt",
+      "quadrant": "techniques",
+      "notes": "Static content first in system prompts for API-level prefix caching at 50% cost discount."
+    },
+    {
+      "name": "Cosmos DB for Agent State",
+      "ring": "adopt",
+      "quadrant": "platforms",
+      "notes": "Document model fits agent state naturally. Change feed, TTL, and partition key design are the key considerations."
+    },
+    {
+      "name": "Azure Functions for Scheduled Pipelines",
+      "ring": "adopt",
+      "quadrant": "platforms",
+      "notes": "Timer triggers for daily/weekly batch pipelines. Near-zero cost when idle."
+    },
+    {
+      "name": "Semantic Kernel (Core Abstractions)",
+      "ring": "adopt",
+      "quadrant": "tools",
+      "notes": "Plugin model and auto function calling provide a solid LLM abstraction. Built-in agents are basic."
+    },
+    {
+      "name": ".NET for AI Agents",
+      "ring": "adopt",
+      "quadrant": "languages-frameworks",
+      "notes": "Strong typing, good performance for orchestration. Ecosystem gap vs Python is narrowing."
+    },
+    {
+      "name": "Evolution Engine (Execution Trace Reflection)",
+      "ring": "trial",
+      "quadrant": "techniques",
+      "notes": "Reflection on execution traces creates a learning feedback loop. Proposal quality varies widely."
+    },
+    {
+      "name": "DAG-Based Task Planning",
+      "ring": "trial",
+      "quadrant": "techniques",
+      "notes": "Goal decomposition into task DAGs with parallel execution. Re-planning after failures not yet reliable."
+    },
+    {
+      "name": "Confidence-Based Human Escalation",
+      "ring": "trial",
+      "quadrant": "techniques",
+      "notes": "Agents pause and alert humans when confidence drops below threshold (0.4). Needs per-agent calibration."
+    },
+    {
+      "name": "Cost Budget Governance",
+      "ring": "trial",
+      "quadrant": "techniques",
+      "notes": "Per-goal, daily, and weekly cost caps. Budget levels still being calibrated."
+    },
+    {
+      "name": "MCP (Model Context Protocol)",
+      "ring": "trial",
+      "quadrant": "platforms",
+      "notes": "Standardized tool integration protocol. Ecosystem is early, some serialization quirks."
+    },
+    {
+      "name": "Microsoft.Extensions.AI (MAF)",
+      "ring": "trial",
+      "quadrant": "tools",
+      "notes": "Unified abstraction over chat clients and embeddings. Migration path from SK-native still evolving."
+    },
+    {
+      "name": "Git Worktree Isolation for Agent Coding",
+      "ring": "trial",
+      "quadrant": "tools",
+      "notes": "Per-task worktrees prevent conflicts. Merge conflict resolution between concurrent worktrees is manual."
+    },
+    {
+      "name": "Semantic Kernel OpenAPI Plugin Import",
+      "ring": "trial",
+      "quadrant": "languages-frameworks",
+      "notes": "Import swagger.json as kernel functions. Large APIs need manual filtering via OperationSelectionPredicate."
+    },
+    {
+      "name": "Self-Modifying AI Systems",
+      "ring": "assess",
+      "quadrant": "techniques",
+      "notes": "Achieved once successfully. Open questions on necessity gating, drift, and evaluator independence."
+    },
+    {
+      "name": "GraphRAG (Knowledge Graph + Retrieval)",
+      "ring": "assess",
+      "quadrant": "techniques",
+      "notes": "Superior for multi-hop reasoning but construction cost is high. Hybrid RAG sufficient for most tasks."
+    },
+    {
+      "name": "Multi-Agent Orchestration",
+      "ring": "assess",
+      "quadrant": "techniques",
+      "notes": "Infrastructure exists (discovery, message bus, routing) but agents do not yet actively delegate."
+    },
+    {
+      "name": "Agentic Coding (LLM Writes Production Code)",
+      "ring": "assess",
+      "quadrant": "techniques",
+      "notes": "Daily use but requires significant guardrails for read:write ratio and over-engineering tendencies."
+    },
+    {
+      "name": "Local LLM Hosting for Agent Workloads",
+      "ring": "assess",
+      "quadrant": "platforms",
+      "notes": "Quality gap vs frontier models is significant for code generation. GPU management burden is non-trivial."
+    },
+    {
+      "name": "OpenTelemetry for AI Agent Observability",
+      "ring": "assess",
+      "quadrant": "tools",
+      "notes": "AI-specific semantic conventions still evolving. Visualization tools lack agent execution trace support."
+    },
+    {
+      "name": "Pure Vector Search Without Keyword Fallback",
+      "ring": "hold",
+      "quadrant": "techniques",
+      "notes": "Misses exact term matches. Always pair with keyword search (hybrid RAG)."
+    },
+    {
+      "name": "Autonomous Deployment Without Safety Gates",
+      "ring": "hold",
+      "quadrant": "techniques",
+      "notes": "Highest-risk component even with gates. Without them, a single bad deployment has no human backstop."
+    },
+    {
+      "name": "Unstructured LLM Output for Agent Communication",
+      "ring": "hold",
+      "quadrant": "techniques",
+      "notes": "Structured output with schema enforcement is strictly superior. Regex parsing is fragile."
+    },
+    {
+      "name": "Synchronous Multi-Turn Sessions Without Compression",
+      "ring": "hold",
+      "quadrant": "techniques",
+      "notes": "Token costs grow quadratically. Context compression at 3K token threshold reduces cost by ~10x."
+    },
+    {
+      "name": "Bing Search API",
+      "ring": "hold",
+      "quadrant": "platforms",
+      "notes": "Retired August 2025. Use Azure AI Search or Playwright-based scraping as alternatives."
+    },
+    {
+      "name": "LangChain for Production Systems",
+      "ring": "hold",
+      "quadrant": "tools",
+      "notes": "High abstraction overhead, difficult to debug. SK and MAF are better choices for .NET systems."
+    }
+  ]
+}

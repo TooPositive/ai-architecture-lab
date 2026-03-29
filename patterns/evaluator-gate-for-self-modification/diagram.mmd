@@ -1,0 +1,19 @@
+graph TD
+    SM[Self-Mod Goal<br/>Writes Code] --> WT[Worktree<br/>Isolation]
+    WT --> B[Build + Test]
+    B -->|Pass| D[Generate<br/>git diff]
+    B -->|Fail| FX[Fix + Retry]
+
+    D --> EV[Independent<br/>Evaluator LLM]
+
+    EV -->|APPROVE| M[Merge to Main]
+    EV -->|REJECT| FB[Feedback<br/>to Coder]
+    FB --> SM
+
+    M --> DP[Deploy]
+    DP --> V[Post-Deploy<br/>Validation<br/>2h delay]
+
+    style SM fill:#4a9eff,color:#fff
+    style EV fill:#ff9f43,color:#fff
+    style M fill:#2ecc71,color:#fff
+    style FB fill:#e74c3c,color:#fff

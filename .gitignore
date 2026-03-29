@@ -1,0 +1,36 @@
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+
+# Claude Code internals
+.claude/settings.local.json
+.claude/hooks/
+.claude/plans/
+
+# Python (benchmark code)
+__pycache__/
+*.pyc
+.venv/
+venv/
+*.egg-info/
+
+# Node (if any tooling)
+node_modules/
+
+# Secrets — NEVER
+.env
+.env.*
+*.key
+*.pem
+secrets.json
+local.settings.json
+
+# Build artifacts
+*.log
+dist/
+build/
+publish/

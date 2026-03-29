@@ -1,0 +1,30 @@
+name: Validate Content
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Lint Markdown
+        uses: DavidAnson/markdownlint-cli2-action@v19
+        with:
+          globs: '**/*.md'
+          config: |
+            {
+              "MD013": false,
+              "MD033": false,
+              "MD041": false
+            }
+
+      - name: Validate Mermaid Diagrams
+        run: |
+          npm install -g @mermaid-js/mermaid-cli
+          find . -name "*.mmd" -exec mmdc -i {} -o /dev/null \;
+          echo "All Mermaid diagrams valid"

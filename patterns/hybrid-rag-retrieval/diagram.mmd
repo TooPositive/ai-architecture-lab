@@ -1,0 +1,16 @@
+graph TD
+    Q[User Query] --> E[Generate Embedding]
+    Q --> T[Extract Keywords]
+
+    E --> VS[Vector Search<br/>Cosine Similarity]
+    T --> KS[Keyword Search<br/>BM25 Full-Text]
+
+    VS --> RRF[Reciprocal Rank<br/>Fusion Merge]
+    KS --> RRF
+
+    RRF --> R[Ranked Results]
+    R --> LLM[LLM Generation]
+
+    style Q fill:#4a9eff,color:#fff
+    style RRF fill:#ff9f43,color:#fff
+    style LLM fill:#2ecc71,color:#fff

@@ -1,0 +1,17 @@
+graph TD
+    Q[(Goal Queue<br/>Cosmos DB)] --> P[Pick Next Goal]
+    P --> L[Load Goal State<br/>+ Current Plan]
+    L --> I[Run One Iteration<br/>Single LLM Call]
+    I --> S{Goal Complete?}
+
+    S -->|No| U[Update Plan<br/>in Database]
+    U --> Q
+
+    S -->|Yes| C[Mark Completed]
+    S -->|Failed| F[Mark Failed<br/>+ Record Error]
+    S -->|Over Budget| B[Pause + Re-queue]
+
+    style Q fill:#4a9eff,color:#fff
+    style I fill:#ff9f43,color:#fff
+    style C fill:#2ecc71,color:#fff
+    style F fill:#e74c3c,color:#fff

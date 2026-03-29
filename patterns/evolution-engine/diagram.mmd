@@ -1,0 +1,23 @@
+graph TD
+    G[Goal Execution] --> T[Record<br/>Execution Trace]
+    T --> R[Reflection<br/>Analysis]
+
+    R --> SK[Skill Proposal<br/>conf >= 0.5]
+    R --> PR[Prompt Proposal<br/>any confidence]
+    R --> CD[Code Proposal<br/>conf >= 0.7]
+    R --> ST[Strategy Proposal<br/>any confidence]
+
+    SK -->|Auto-Apply| A[Applied to<br/>Knowledge Base]
+    PR -->|Queue for Review| H[Human Review]
+    CD -->|Spawn Goal| SM[Self-Mod Goal<br/>Worktree + Test + Evaluate]
+    ST -->|Queue for Review| H
+
+    SM --> EV[Independent<br/>Evaluator Gate]
+    EV -->|Approve| D[Merge + Deploy]
+    EV -->|Reject| FB[Feedback to Plan]
+
+    style G fill:#4a9eff,color:#fff
+    style R fill:#ff9f43,color:#fff
+    style A fill:#2ecc71,color:#fff
+    style D fill:#2ecc71,color:#fff
+    style EV fill:#e74c3c,color:#fff
