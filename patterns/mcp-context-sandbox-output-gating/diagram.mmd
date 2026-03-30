@@ -1,0 +1,24 @@
+flowchart TD
+  U[User / Agent Loop] --> A[Agent (Claude Code / Cursor / etc.)]
+
+  A -->|MCP tool call| G[MCP Context Gateway
+  (Output Gating + Sandbox)]
+
+  subgraph Sandbox
+    E[Isolated Subprocess
+    (script/CLI execution)]
+    KB[(Local KB: SQLite FTS5
+    + BM25 index)]
+  end
+
+  G -->|execute/batch_execute| E
+  E -->|raw artifacts: logs/html/snapshots
+  stay inside sandbox| E
+  E -->|stdout: small extract/summary| G
+
+  G -->|index/fetch_and_index| KB
+  KB -->|search results: exact snippets
+  + code blocks| G
+
+  G -->|small, gated output| A
+  A --> U
