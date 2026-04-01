@@ -1,0 +1,20 @@
+flowchart LR
+  U[User] --> A[Agent (Claude Code / MCP client)]
+
+  A -->|tool call| H[PreToolUse Hook / Router]
+  H --> S[MCP Output Sandbox Server]
+
+  S -->|spawn per-call| P[Isolated Subprocess
+(runtime: py/js/sh/...) ]
+  P -->|reads files / runs CLIs| FS[(Repo / OS / Auth CLIs)]
+
+  P -->|raw artifacts stay here| ART[(Logs / Snapshots / CSV / API payloads)]
+  P -->|stdout only (filtered/extracted)| S
+
+  S -->|small extract| A
+  A --> L[LLM]
+
+  A -->|optional| KB[Index/Search Tool]
+  KB --> DB[(SQLite FTS5
+BM25 index)]
+  KB -->|exact blocks| A
