@@ -1,0 +1,10 @@
+flowchart TD
+  A[Agent Runtime / IDE (Claude Code-like)] --> B[Prompt Builder]
+  B -->|Stable system prefix (bit-identical)| C[Local Inference Server\n(llama.cpp / LM Studio)]
+  B -->|Dynamic info as user/tool message\n(not in prefix)| C
+
+  C -->|Prefix match| D[KV Cache / Prefix Cache]
+  D -->|Reuse prefill| C
+
+  A -->|Telemetry / git status| E[Out-of-band metadata\n(headers, logs, session state)]
+  E -. not in prompt .-> B
