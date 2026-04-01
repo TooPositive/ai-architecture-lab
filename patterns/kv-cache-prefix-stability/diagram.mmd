@@ -1,0 +1,18 @@
+flowchart TD
+  A[Agent] -->|Request N
+(system prompt + messages)| B[Inference Backend
+(llama.cpp / LM Studio)]
+
+  subgraph Bad[Unstable Prefix]
+    A1[System prompt includes
+telemetry + git status] --> B1[Prefix mismatch
+KV cache invalidated]
+  end
+
+  subgraph Good[Stable Prefix]
+    A2[Static system prompt prefix
+(no dynamic fields)] --> B2[Prefix match
+KV cache reused]
+    A2 -->|dynamic state via explicit tools| T[Tool call: git status, telemetry]
+    T --> A2
+  end
