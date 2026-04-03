@@ -1,0 +1,72 @@
+[
+  {
+    "name": "Multi-model deep research (generator + reviewer / Critique)",
+    "ring": "trial",
+    "quadrant": "techniques",
+    "isNew": true,
+    "description": "Two-model architecture that separates research generation from rubric-based review/refinement; Microsoft reports +7.0 DRACO points (SEM ±1.90) and +13.88% over Perplexity Deep Research. Source: https://techcommunity.microsoft.com/blog/microsoft365copilotblog/introducing-multi-model-intelligence-in-researcher/4506011"
+  },
+  {
+    "name": "Model council (multi-model side-by-side with judge summary)",
+    "ring": "assess",
+    "quadrant": "techniques",
+    "isNew": true,
+    "description": "Parallel multi-model reports with an additional judge model summarizing agreements/divergences ("Council" in Microsoft Researcher). Source: https://techcommunity.microsoft.com/blog/microsoft365copilotblog/introducing-multi-model-intelligence-in-researcher/4506011"
+  },
+  {
+    "name": "KV-cache + vector quantization (TurboQuant / QJL / PolarQuant)",
+    "ring": "assess",
+    "quadrant": "techniques",
+    "isNew": true,
+    "description": "Quantization methods aimed at reducing KV-cache bottlenecks and speeding vector search while minimizing quantization overhead. Source: https://research.google/blog/turboquant-redefining-ai-efficiency-with-extreme-compression/"
+  },
+  {
+    "name": "Fractional GPU instances for inference (vGPU slicing)",
+    "ring": "trial",
+    "quadrant": "platforms",
+    "isNew": true,
+    "description": "Preview of fractional G4 VMs (1/2, 1/4, 1/8 GPU) to right-size inference/graphics workloads; framed for agentic + MoE infrastructure. Source: https://cloud.google.com/blog/products/compute/google-cloud-ai-infrastructure-at-nvidia-gtc-2026/"
+  },
+  {
+    "name": "Agent harness layer (execution boundaries, approvals, long-running context)",
+    "ring": "trial",
+    "quadrant": "techniques",
+    "isNew": true,
+    "description": "Formalized harness patterns for production agents: shell/filesystem access, approval flows, and context management. Source: https://devblogs.microsoft.com/agent-framework/agent-harness-in-agent-framework/"
+  },
+  {
+    "name": "Model Context Protocol (MCP) integration in agent frameworks",
+    "ring": "trial",
+    "quadrant": "tools",
+    "isNew": false,
+    "description": "Agent Framework integration with Claude Agent SDK includes MCP server integration plus tool/file/code execution capabilities. Source: https://devblogs.microsoft.com/agent-framework/build-ai-agents-with-claude-agent-sdk-and-microsoft-agent-framework/"
+  },
+  {
+    "name": "LLM gateway (OpenAI-compatible routing layer)",
+    "ring": "assess",
+    "quadrant": "tools",
+    "isNew": true,
+    "description": "Dedicated gateway for multi-provider routing, retries/failover, cost tracking, caching, and privacy controls (Sentinel, Rust). Source: https://www.reddit.com/r/MachineLearning/comments/1r9mbtc/p_open_source_llm_gateway_in_rust_looking_for/"
+  },
+  {
+    "name": "Vector search via EF Core 10 + pgvector (LINQ-level integration)",
+    "ring": "trial",
+    "quadrant": "tools",
+    "isNew": true,
+    "description": "EF Core 10 supports storing/querying vector embeddings via LINQ, translating to SQL over pgvector (and mentions SQL Server 2025 native support). Source: https://www.reddit.com/r/dotnet/comments/1s6jif1/pgvector_and_ef_core_10_for_semantic_search/"
+  },
+  {
+    "name": "Microsoft.Extensions.VectorData (.NET unified vector-store abstraction)",
+    "ring": "trial",
+    "quadrant": "tools",
+    "isNew": true,
+    "description": "Unified .NET interface for semantic search across vector stores with embeddings, filtering, and RAG patterns. Source: https://devblogs.microsoft.com/dotnet/vector-data-in-dotnet-building-blocks-for-ai-part-2/"
+  },
+  {
+    "name": "Prompt-injection threat model for self-hosted LLMs (WAF is insufficient)",
+    "ring": "adopt",
+    "quadrant": "techniques",
+    "isNew": false,
+    "description": "Incident report highlights prompt injection causing system prompt leakage and notes traditional WAFs don’t address LLM-specific attacks. Source: https://www.reddit.com/r/LocalLLaMA/comments/1qyljr0/prompt_injection_is_killing_our_selfhosted_llm/"
+  }
+]
