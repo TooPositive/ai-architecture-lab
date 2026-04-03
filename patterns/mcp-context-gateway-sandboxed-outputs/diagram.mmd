@@ -1,0 +1,26 @@
+flowchart TD
+  U[User] --> A[Agent Runtime
+(Claude Code / other MCP client)]
+
+  A -->|Tool call| H[Hook layer
+(PreToolUse/PostToolUse)]
+  H --> G[MCP Context Gateway
+(Context Mode-style)]
+
+  subgraph Sandbox[Sandboxed execution]
+    G -->|ctx_execute / ctx_batch_execute| P[Isolated subprocess
+(per-call)]
+    P --> FS[(Artifacts on disk
+logs, snapshots, API payloads)]
+    P -->|stdout only| G
+  end
+
+  subgraph Memory[Local persistence + retrieval]
+    G --> DB[(SQLite)]
+    DB --> FTS[(FTS5 index)]
+    G -->|ctx_index / ctx_fetch_and_index| FTS
+    A -->|ctx_search| G
+    G -->|BM25-ranked exact snippets| A
+  end
+
+  A -->|Compact response| U
