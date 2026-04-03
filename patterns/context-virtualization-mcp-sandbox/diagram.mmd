@@ -1,0 +1,41 @@
+flowchart TD
+  U[User] -->|instructions| A[Agent runtime
+(Claude Code / Cursor / Copilot)]
+
+  subgraph Hooks[Client Hooks]
+    HS[SessionStart hook
+(inject routing rules)]
+    PT[PreToolUse hook
+(detect high-output tools)]
+    PO[PostToolUse hook
+(record events)]
+    PC[PreCompact hook
+(prevent raw dump)]
+  end
+
+  A --> HS
+  A --> PT
+
+  PT -->|route| CM[MCP Server: Context Mode]
+
+  subgraph Sandbox[Sandbox tools]
+    CE[ctx_execute / ctx_execute_file]
+    CB[ctx_batch_execute]
+    CI[ctx_index]
+    CS[ctx_search]
+    CF[ctx_fetch_and_index]
+  end
+
+  CM --> CE --> T1[External tools
+(shell, web fetch, file reads, etc.)]
+  T1 -->|raw output| CE
+  CE -->|small structured summary + artifact id| A
+
+  PO --> CM
+  CM -->|append events| DB[(SQLite event log)]
+  DB -->|FTS5 index| IDX[(FTS5)]
+  CS -->|BM25 query| IDX
+  IDX -->|relevant snippets| CS --> A
+
+  PC -->|compaction happens| A
+  A -->|no raw tool output re-injected| A
