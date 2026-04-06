@@ -1,0 +1,27 @@
+flowchart TD
+  A[Agent (Claude Code / Cursor / OpenHands)] -->|LLM API calls via base_url| P[Context Gateway Proxy]
+
+  P --> M{Monitor
+  token usage}
+  M -->|below threshold| FWD[Forward request to LLM provider]
+  FWD --> L[LLM Provider (OpenAI/Anthropic/Ollama/Bedrock)]
+  L --> P
+  P --> A
+
+  M -->|tool output detected| C[Intent-conditioned
+  tool-output compression]
+  C --> S[Store original output
+  (for expand())]
+  C --> FWD
+
+  M -->|>= threshold (e.g., 75-85%)| B[Background history
+  compaction job]
+  B --> R[Replace long history
+  with compressed history]
+  R --> FWD
+
+  A -.->|later needs removed detail| E[expand()]
+  E --> P
+  P --> S
+  S --> P
+  P --> A
