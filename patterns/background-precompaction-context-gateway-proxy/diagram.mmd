@@ -1,0 +1,24 @@
+flowchart TD
+  A[Agent (Claude Code/Cursor/OpenClaw/etc.)] -->|LLM API calls| P[Context Gateway proxy
+  localhost:8080]
+  P -->|forward| L[LLM Provider API
+  (OpenAI/Anthropic/Ollama/etc.)]
+
+  subgraph Proxy[Proxy responsibilities]
+    M[Monitor token usage] --> T{>= threshold?
+    (e.g., 75%)}
+    T -->|yes| S[Background summarization
+    precompute compaction]
+    T -->|no| F[No-op]
+    O[Tool output interceptor] --> C[Tool output compression]
+    S --> I[Instant compaction
+    when limit reached]
+    E[Write JSONL logs
+    history_compaction/tool_output/telemetry]
+  end
+
+  P -.-> M
+  P -.-> O
+  I -.-> P
+  C -.-> P
+  P -.-> E
