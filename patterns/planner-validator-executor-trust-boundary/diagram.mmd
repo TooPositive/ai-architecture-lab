@@ -1,0 +1,19 @@
+flowchart LR
+  U[User request] --> P[Planner LLM
+  "Output JSON only
+  {tool,args,reasoning}"]
+  P -->|plan JSON| V[Validator / Trust Boundary
+  - JSON parse
+  - schema validation
+  - tool allowlist
+  - arg constraints
+  - normalize/reject
+  (deterministic)]
+  V -->|validated tool call| E[Executor
+  deterministic dispatch]
+  E --> T[Tool implementation
+  (API/DB/FS/etc.)]
+  T --> E
+  E --> R[Result to user]
+  V -->|reject| X[Safe failure
+  retry / fallback / ask clarifying]
