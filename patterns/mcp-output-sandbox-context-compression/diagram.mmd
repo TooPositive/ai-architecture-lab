@@ -1,0 +1,30 @@
+flowchart TD
+  U[User] --> A[Agent / LLM Orchestrator]
+
+  A -->|Tool call (MCP)| GW[Context Gateway MCP Server
+(PreToolUse hook)]
+
+  subgraph Sandbox[Isolated subprocess sandbox]
+    EX[execute: run script/CLI
+(JS/TS/Python/Shell/Go/Rust...)]
+    ART[(Artifacts: logs, snapshots, CSVs
+NOT sent to LLM context)]
+    EX --> ART
+  end
+
+  GW --> EX
+  EX -->|stdout / small JSON| GW
+  GW -->|compressed result (<1KB typical)| A
+
+  subgraph KB[Local Knowledge Base]
+    IDX[index: chunk markdown by headings
+keep code blocks]
+    FTS[(SQLite FTS5 + BM25 + stemming)]
+    IDX --> FTS
+  end
+
+  GW -->|fetch_and_index(URL)| IDX
+  A -->|search(query)| GW
+  GW -->|exact snippets + headings| A
+
+  A --> R[Response]
