@@ -1,46 +1,40 @@
-# Benchmark report: Preserve KV cache by eliminating dynamic system-prompt headers (prefix stability)
+# Benchmark report: Preserving KV/prefix cache by disabling dynamic attribution headers in system prompt
 
 ## Source
 - AgentPatterns.ai. **"Disable Attribution Headers to Preserve KV Cache in Local Inference"**
   https://www.agentpatterns.ai/context-engineering/kv-cache-invalidation-local-inference/
 
-## Technique summary
-When using local inference servers (e.g., llama.cpp/LM Studio style servers), performance often depends on **prefix matching** to reuse the model **KV cache** across turns. If the client mutates the beginning of the prompt each request (e.g., changing attribution/telemetry headers), the server cannot reuse the prefix → KV cache is invalidated → the server must re-process the full prompt every turn.
+## Technique
+Some agent runtimes inject **dynamic attribution/telemetry** into the *beginning* of the prompt (e.g., system prompt). For local inference servers that rely on **prefix matching / KV cache reuse**, tiny changes in the prefix cause cache misses and force full prompt reprocessing.
 
-The source describes disabling or removing these dynamic headers so the prompt prefix remains stable and KV caching works.
+The technique is to **disable or stabilize** these dynamic injections so the prompt prefix remains identical between turns, enabling KV cache reuse.
 
 ## What metric improves?
-- **Latency (p50/p95)**: fewer tokens re-processed per turn due to KV cache reuse.
-- **Cost (compute)** for self-hosted/local: reduced CPU/GPU work per request.
-- **Context utilization** indirectly: stable prompt structure discourages repeated re-sending of huge tool definitions that can’t be cached effectively when prefixes change.
+- **Latency** (especially multi-turn): avoids reprocessing large, repeated prefixes.
+- **Compute cost** (local GPU/CPU): fewer prompt tokens re-evaluated per turn.
 
 ## Theoretical comparison vs our baseline
 Baseline (given):
 - Retrieval: MRR@10 = 0.78
-- Latency: p50 = 45ms
-- Corpus: 246 docs, Cosmos DB vector + BM25 hybrid
+- Latency: p50 = 45ms (retrieval)
+- Hybrid search: Cosmos DB vector + BM25 on 246 docs
 
-This technique does **not** improve retrieval quality directly. It targets **agent inference latency** in tool-heavy loops, especially with local backends.
+This technique primarily targets **generation-side latency**, not retrieval latency.
+If your system prompt + tool definitions are large (common for agents), KV cache preservation can reduce per-turn latency by eliminating repeated prefill computation.
 
-Reasoning vs baseline latency:
-- If your current system’s 45ms p50 is dominated by **retrieval** and network inference to managed APIs, KV cache preservation may have limited impact.
-- If you run a local model where per-turn latency is dominated by repeatedly re-processing a large system prompt/tool schema, stabilizing the prefix can reduce effective prompt-processing per turn from "full prompt" to "only new tokens".
-- Expected effect is largest in agent CLIs that resend large tool definitions and mutate headers.
+A rough upper bound: if prefill dominates, improvements can be much larger than 45ms; if retrieval dominates, improvements are smaller.
 
-## Claimed improvements (from the source)
-The article’s core claim is qualitative/mechanistic: dynamic headers break prefix matching and therefore disable KV caching; removing them restores KV cache reuse and prevents repeated full-prompt reprocessing. (The article frames this as a practical fix for slow local inference.)
+## Claimed/mechanistic improvements (from source)
+The source describes the failure mode (dynamic prompt prefix breaks KV caching) and prescribes removing/stabilizing attribution headers. It does not provide a single universal numeric speedup, but the mechanism is directly measurable.
 
-## How to benchmark against our baseline
-Even though your baseline includes retrieval metrics, you can benchmark this technique as a **system optimization**:
-1. Fix the RAG pipeline and queries (same retrieval settings).
-2. Run a tool-using chat loop with a stable long system prompt and tool schema.
-3. Compare two runs on a local backend:
-   - A: dynamic attribution/telemetry header injected each turn (prefix changes)
-   - B: header disabled; prefix stable
-4. Measure:
-   - end-to-end latency per turn (p50/p95)
-   - tokens processed per turn (if server exposes)
-   - CPU/GPU utilization
+## How to benchmark in our environment
+1. Use a local inference backend that supports prefix/KV caching (e.g., llama.cpp server or similar).
+2. Fix a large static system prompt (e.g., 10k tokens tool schema).
+3. Run 100 multi-turn interactions where only the user message changes.
+4. Compare p50/p95 latency with:
+   - (A) dynamic prefix injection enabled (simulate by adding a random header line in the system prompt each turn)
+   - (B) dynamic prefix injection disabled (exact identical prefix)
+5. Track backend metrics: prefill tokens/sec, cache hit ratio, total tokens processed.
 
-## Confidence
-**Medium**: The causal mechanism (prefix changes → cache miss) is well-known for KV caching; the specific recommendation is grounded in the cited article, but the article is not a peer-reviewed benchmark and does not provide universal numeric deltas.
+## Classification
+**BENCHMARKABLE** (latency and compute can be measured; technique targets a specific caching failure mode described in the source).
