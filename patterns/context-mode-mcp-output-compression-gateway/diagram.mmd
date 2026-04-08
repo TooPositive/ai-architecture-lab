@@ -1,0 +1,9 @@
+flowchart LR
+  A[Agent Client] --> G[Context Gateway (MCP Proxy)]
+  G -->|call tool| T[External Tool (e.g., Playwright, GitHub)]
+  T -->|raw output| G
+  G -->|store raw| B[(Blob/Object Store)]
+  G -->|compressed summary + handles| A
+  A -->|if needed: drill-down| G
+  G -->|fetch slice by handle| B
+  G -->|focused snippet| A
