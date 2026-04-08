@@ -1,0 +1,9 @@
+flowchart LR
+  U[User Request] --> P[Planner (LLM)\nproduces Plan JSON]
+  P -->|proposed plan| X[Executor (Deterministic)\nschema + policy validation]
+  X -->|validated tool call| T[Tool Adapter]
+  T --> S[External Service/API]
+  S --> T --> X
+  X --> R[Final Response]
+  X -->|reject + reason| E[Error/Repair Prompt\nto Planner]
+  E --> P
