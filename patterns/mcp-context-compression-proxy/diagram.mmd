@@ -1,0 +1,13 @@
+flowchart LR
+  A[Agent Runtime
+(Claude Code / MCP client)] -->|tool call| P[Context Mode / Compression Proxy]
+  P -->|forward call| T[MCP Tool Server(s)]
+  T -->|raw output| P
+
+  P -->|store raw| S[(Artifact Store)]
+  P -->|compact output
+(summary+ids)| A
+
+  A -->|recall(artifact_id, selector)| P
+  P -->|fetch raw| S
+  S -->|slice| P -->|focused slice| A
