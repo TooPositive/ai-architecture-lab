@@ -1,0 +1,25 @@
+flowchart LR
+  A[Agent (Claude Code / Cursor / custom)] -->|LLM API calls| P[Context Gateway Proxy
+  - tracks tokens
+  - compresses tool outputs
+  - precomputes history compaction]
+
+  subgraph Compression
+    T[Tool output] --> IC[Intent-conditioned compressor
+    (condition on tool call intent)] --> CT[Compressed tool output]
+    CT --> P
+    H[Conversation history] --> BG[Background compaction at threshold
+    e.g., 75%] --> CH[Compacted history]
+    CH --> P
+  end
+
+  P -->|Forward request| L[LLM Provider API
+  (OpenAI/Anthropic/Ollama/Bedrock)]
+
+  P --> LOG[JSONL logs
+  - history_compaction.jsonl
+  - tool_output_compression.jsonl
+  - telemetry.jsonl]
+
+  %% Optional escape hatch
+  A -.->|expand() / fetch original output| P
