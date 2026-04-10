@@ -1,0 +1,15 @@
+flowchart LR
+  U[User] --> A[Agent Orchestrator]
+  A --> P[Planner (LLM)
+  produces proposed plan JSON]
+  P -->|plan JSON| E[Executor (Deterministic)
+  trust boundary]
+
+  E -->|validate + normalize| V{Schema + policy
+  checks pass?}
+  V -- No --> R[Reject w/ reasons
+  ask LLM to regenerate] --> P
+  V -- Yes --> T[Tool Adapter] --> S[Service / DB / External APIs]
+
+  S --> T --> E
+  E --> A --> U
