@@ -1,0 +1,17 @@
+flowchart TB
+  subgraph StablePrefix[Stable prefix (cacheable)]
+    SP[System instructions + tool schemas
+    deterministic ordering]
+  end
+
+  subgraph Dynamic[Dynamic per-turn data (non-prefix)]
+    D1[User request]
+    D2[Ephemeral state
+    (git status, telemetry, timestamps)]
+  end
+
+  SP --> LLM[LLM Backend w/ KV cache]
+  D1 --> LLM
+  D2 --> LLM
+
+  LLM --> Resp[Response / tool call]
