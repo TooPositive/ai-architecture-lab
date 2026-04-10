@@ -1,0 +1,26 @@
+flowchart LR
+  subgraph Client[Agent Client / CLI]
+    A[Stable system prompt + tool schemas
+(frozen bytes)]
+    B[Dynamic messages
+(chat history, tool results)]
+    C[Out-of-band metadata
+(telemetry, git status)]
+  end
+
+  subgraph Proxy[Cache-Aware Prompt Proxy]
+    D[Validate stable prefix hash]
+    E[Assemble request:
+Stable prefix + Dynamic segment]
+    F[Log metadata separately]
+  end
+
+  subgraph Backend[Local Inference Backend]
+    G[Prefix/KV cache]
+    H[Model inference]
+  end
+
+  A --> D --> E --> G --> H
+  B --> E
+  C --> F
+  F -.not in prompt.-> H
