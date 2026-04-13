@@ -1,0 +1,10 @@
+flowchart LR
+  U[User Request] --> P[Planner (LLM / Untrusted)]
+  P -->|proposed plan + actions| E[Executor (Deterministic)]
+  E -->|validate vs schema
+  allow-list & authZ| V{Valid?}
+  V -- No --> R[Repair Prompt
+  (ask LLM to fix)] --> P
+  V -- Yes --> T[Tool Adapter] --> S[(Services/APIs)]
+  S --> T --> E
+  E -->|structured result| P --> O[Final Answer]
