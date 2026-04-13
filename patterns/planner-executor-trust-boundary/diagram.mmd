@@ -1,0 +1,17 @@
+flowchart TD
+  U[User request] --> P[Planner LLM
+  - sees tool list
+  - outputs JSON plan only]
+  P -->|plan JSON| V[Trust Boundary / Validator
+  - parse JSON
+  - schema validation
+  - tool allowlist
+  - arg constraints]
+  V -->|validated call| E[Executor
+  - maps tool name to function
+  - executes deterministically
+  - logs]
+  E --> T[Tool / Service]
+  T --> E
+  E --> R[Final response]
+  V -->|reject/repair| P
