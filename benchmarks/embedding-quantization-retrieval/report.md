@@ -1,43 +1,47 @@
-# Benchmark: Embedding Quantization for Vector Retrieval (Scalar/Binary)
+# Benchmark: Embedding Quantization for Faster/Cheaper Retrieval
 
 ## Source
-- **"Binary and scalar embedding quantization for faster, cheaper vector retrieval"** (Hugging Face blog; summarized in internal KB node `search-knowledge-9be082ac-d8ff-4f29-aab4-af8b8351d75a`).
+- **Binary and scalar embedding quantization for faster, cheaper vector retrieval** (Hugging Face blog; summarized in internal knowledge base)
+  - Knowledge node: `Binary and scalar embedding quantization for faster, cheaper vector retrieval`
 
 ## What metric improves?
-- **Latency / throughput** of vector similarity search (faster comparisons; smaller memory bandwidth).
-- **Cost** (lower storage footprint; potentially cheaper infra).
-- Potentially **cache efficiency** (more vectors fit in RAM/CPU cache).
+Primary improvements are typically:
+- **Latency (p50/p95)** for vector similarity search (faster distance computations; better cache locality).
+- **Cost / memory footprint** of the vector index (smaller embeddings → less RAM/disk; potentially fewer nodes).
+Secondary potential improvements:
+- **Throughput (QPS)** for retrieval.
+
+Retrieval accuracy usually **degrades slightly** depending on quantization level (int8 vs binary).
 
 ## Technique summary
-Quantize stored embedding vectors from fp16/fp32 into:
-- **Scalar quantization** (e.g., int8-like values)
-- **Binary quantization** (bit-packed vectors; similarity via bit operations / Hamming distance)
+Quantize stored embedding vectors from fp16/fp32 to:
+- **Scalar quantization** (e.g., int8-like representation), or
+- **Binary quantization** (bit vectors; compare via Hamming/bit ops)
 
-Retrieval uses approximate distance on quantized vectors (optionally followed by re-ranking on full precision for top-K).
+This reduces storage and accelerates similarity search.
 
 ## Theoretical comparison vs our baseline
-**Baseline**: MRR@10=0.78, latency p50=45ms, hybrid search on 246 docs using Cosmos DB vector + BM25.
+Baseline environment:
+- Corpus: **246 docs**
+- Retrieval: **Cosmos DB vector + BM25 hybrid**
+- Baseline metrics: **MRR@10=0.78**, **latency p50=45ms**
 
-### Expected impact
-- On a small corpus (246 docs), absolute p50 improvements may be modest, because the dominant cost can be network + query overhead rather than brute-force vector math.
-- Still benchmarkable: quantization can reduce CPU time and memory pressure, which matters when:
-  - scaling to larger corpora
-  - consolidating infra
-  - running on edge / constrained environments
-
-### Hypothesis (benchmark plan)
-- Keep hybrid BM25+vector unchanged, but replace vector index with quantized embeddings.
-- Measure:
-  1. **p50/p95 latency** for retrieval
-  2. **MRR@10 / nDCG@10** (expect small degradation for binary; smaller for scalar)
-  3. **Storage size** of embeddings + index
-
-### Why it should help
-- Smaller representations reduce the number of bytes read per candidate and speed up similarity computations (especially binary bitwise operations), which should reduce the vector component of latency and increase throughput.
+Expected effects with quantization (reasoned):
+- **Latency**: likely improves if the vector scan/ANN dominates p50. Smaller vectors reduce compute per similarity and improve memory bandwidth. However, on 246 docs, you may already be dominated by network/DB overhead rather than similarity compute, so gains could be modest unless you are CPU-bound.
+- **Cost**: if using a managed vector DB priced by RU/CPU/memory, quantization can reduce memory footprint and improve cache hit rates, potentially reducing RU or allowing smaller SKU. With only 246 docs, absolute savings are small, but the technique becomes meaningful as corpus grows (10^5–10^8 vectors).
+- **Retrieval quality (MRR@10)**: may drop slightly; hybrid BM25 can partially compensate by preserving lexical signals.
 
 ## Claimed improvements (from source)
-The source frames quantization as enabling **"significantly cheaper and faster retrieval"** with "small quality trade-offs" by compressing embeddings into scalar or binary representations (KB node `search-knowledge-9be082ac-d8ff-4f29-aab4-af8b8351d75a`).
+The source claims quantized embeddings can yield **significantly cheaper and faster retrieval** with **small quality trade-offs**, comparing full-precision vs low-bit representations (scalar/binary).
+
+## How to benchmark in our stack
+1. Export existing embeddings and build a quantized variant (int8 and/or binary).
+2. Rebuild the vector index with quantized vectors (or use a library/index that supports them, e.g., FAISS/PQ style; DB support varies).
+3. Run the same evaluation set:
+   - Measure **MRR@10**, **recall@10**
+   - Measure **latency p50/p95** end-to-end and retrieval-only
+   - Measure memory usage / cost (if self-hosted)
 
 ## Confidence
-- **High** that quantization reduces storage and vector compute cost (widely used idea).
-- **Medium** that it improves *our* p50 latency at 246 docs, because overheads may dominate at this scale.
+- **Medium** that latency/cost improvements exist in general (well-established technique).
+- **Low-to-medium** that it materially improves our specific baseline at 246 docs, because overhead may not be similarity-compute bound.
