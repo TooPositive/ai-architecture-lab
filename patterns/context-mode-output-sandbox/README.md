@@ -1,56 +1,49 @@
-# Context Mode Output Sandbox (MCP)
+# Context Mode Output Sandbox (MCP Context Compression)
 
 ## Source
-- **Stop Burning Your Context Window — We Built Context Mode** — Mert Köseoğlu (Feb 26, 2026)  
-  https://mksg.lu/blog/context-mode
+- **Stop Burning Your Context Window — We Built Context Mode** — Mert Köseoğlu (Feb 26, 2026)
+- https://mksg.lu/blog/context-mode
 
 ## Problem
-Agent tool calls (especially via MCP) often return **large raw outputs** (HTML pages, logs, screenshots, issue lists, CSVs) that get pasted directly into the LLM context window. This causes:
-- Rapid context exhaustion (e.g., long sessions degrade quickly)
-- Higher cost/latency due to larger prompts
-- Lower answer quality from irrelevant verbosity
+Agent/tool workflows (especially MCP-based) often stream large raw artifacts (HTML pages, logs, Playwright snapshots, GitHub issue lists, CSVs) directly into the LLM context. This rapidly consumes the context window, increases latency/cost, and degrades reasoning quality over long sessions.
 
 ## Solution
-Insert a **context gateway MCP server** between the agent and tools that:
-1. Executes heavy data processing in a **sandboxed subprocess**.
-2. Keeps raw outputs **out of the LLM context**.
-3. Emits only **small, task-specific stdout** (or exact relevant snippets like code blocks) back to the LLM.
+Insert an **MCP “context gateway” server** between the agent runtime and external tools. Route high-volume tool outputs into a **sandbox/executor subprocess** and only return **small, deterministic summaries or computed results** back into the LLM context.
 
-### Architecture (concrete)
-- Run an MCP server (“Context Mode”) that provides:
-  - `execute` / `batch_execute`: run scripts in isolated subprocesses; only stdout is returned to the agent.
-  - `index`: chunk markdown by headings (preserve code blocks) and store in **SQLite FTS5**.
-  - `search`: query the FTS5 index; return *exact* matching code blocks + heading hierarchy (BM25-ranked).
-  - `fetch_and_index`: fetch URL → convert HTML→markdown → chunk → index.
-- Add a **PreToolUse hook** that automatically routes tool outputs through the sandbox so the agent workflow doesn’t change.
-- Support multiple runtimes (the source lists JS/TS/Python/Shell/Ruby/Go/Rust/PHP/Perl/R).
+Concrete architecture (as described in the source):
+1. **PreToolUse hook** intercepts tool calls.
+2. **Sandbox executor** runs code in an isolated subprocess; the *raw data* (files, API responses, snapshots) stays outside the prompt.
+3. Only **stdout** (small) is returned to the LLM.
+4. A **knowledge base tool** builds a local index for fetched content:
+   - Convert HTML → Markdown
+   - Chunk Markdown **by headings** while **keeping code blocks intact**
+   - Store in **SQLite FTS5**
+   - Query with **BM25** + stemming
+   - Return exact matching sections / code blocks (not generated summaries)
 
-### Example implementation sketch
-- If a tool returns a 50KB blob (e.g., Playwright snapshot), instead of inserting it into context:
-  - write it to a temp file inside sandbox
-  - run a script to extract exactly what’s needed (e.g., the failing selector, the HTTP status, a table of errors)
-  - return <1KB derived output
+Reported impact (from the source article):
+- Session output volume reduced **315 KB → 5.4 KB** (~**98% reduction**)
+- Session time before slowdown **~30 min → ~3 hours**
 
 ## Trade-offs
-- **Operational complexity**: you now run an MCP server + sandbox runtime environment.
-- **Debuggability**: raw tool outputs are not in the prompt transcript; you must rely on sandbox logs/artifacts.
-- **Security surface**: executing code/subprocesses requires hardening (filesystem/network restrictions, secrets handling).
-- **Potential loss of nuance**: if extraction scripts are wrong, the LLM may miss critical details that were present in the raw output.
+- **Engineering complexity**: you must operate an MCP gateway with hooks and an execution sandbox (process isolation, credential passthrough).
+- **Debuggability**: hiding raw tool output from the LLM means you need good logging/trace tooling outside the prompt to diagnose failures.
+- **Loss of “full-fidelity” context**: if the gateway returns overly aggressive summaries, the model may miss edge-case details; mitigated by providing targeted “fetch exact section” APIs.
+- **Security surface**: credential passthrough to subprocesses must be carefully scoped; sandboxing reduces but doesn’t eliminate risk.
 
 ## When to use / When NOT to use
-### Use when
-- You have long-running agent sessions (IDE agents, ops copilots) where tool output bloat is a primary failure mode.
-- Your tools routinely return large artifacts (browser snapshots, logs, CSVs, issue lists, API JSON).
-- You can define deterministic extraction steps (parsing logs, summarizing tabular data, grepping code).
+**Use when:**
+- Long-running coding or ops sessions where tools emit large artifacts (browser snapshots, logs, CSV analytics, issue lists).
+- You have many tools enabled (large tool schemas + large outputs) and hit context limits.
+- You can tolerate an extra gateway hop to reduce LLM token usage.
 
-### Don’t use when
-- Tool outputs are already small (<1–2KB) and you benefit from full transparency in the LLM transcript.
-- You cannot trust a sandboxed transformation layer (e.g., compliance requires raw evidence in the conversation log).
-- Your environment cannot safely run subprocess sandboxes.
+**Avoid when:**
+- Your tools already return compact, structured outputs (small JSON).
+- You need the model to directly reason over the *entire* raw artifact (e.g., full legal text) and cannot rely on targeted retrieval.
 
 ## Implementation notes
-- **Typical stack**: Node.js MCP server + subprocess execution.
-- **Storage**: SQLite FTS5 for local searchable knowledge base.
-- **Effort**:
-  - MVP (single agent, a few tools): ~1–2 days
-  - Production hardening (RBAC, isolation, audit logs, artifact retention): ~1–3 weeks
+- **Interface**: MCP server with interception hooks (e.g., a “PreToolUse” hook) to auto-route tool outputs.
+- **Sandbox execution**: isolated subprocess per call; capture stdout only.
+- **Index**: SQLite **FTS5** with **BM25** ranking; chunk by markdown headings; preserve code blocks.
+- **Languages/runtimes** (from source): JS/TS/Python/Shell/Ruby/Go/Rust/PHP/Perl/R; optional Bun for faster JS/TS.
+- **Effort**: ~2–5 engineering days for a minimal gateway + sandbox + a single “index/search” tool; more if you add robust security, tracing, and multi-tool routing.

@@ -1,14 +1,17 @@
 flowchart TD
-  A[Agent (Claude Code / MCP client)] -->|tool call| B[PreToolUse Hook / Router]
-  B --> C[Context Mode MCP Server]
+  A[LLM Agent (Claude Code / Agent Runtime)] -->|tool call| B[PreToolUse Hook / Gateway]
+  B -->|route execution| C[Sandbox Executor
+  (isolated subprocess)]
+  C -->|reads raw artifacts
+  (logs, HTML, snapshots, CSV)| D[(Raw Data خارج prompt)]
+  C -->|stdout only (compact)| A
 
-  C -->|execute/batch_execute| D[Sandbox Subprocess\n(JS/TS/Python/Shell/...)]
-  D -->|writes raw outputs| E[(Sandbox FS / Temp Artifacts)]
-  D -->|returns small stdout| C
-
-  C -->|index| F[Chunker\n(headings + preserve code blocks)]
-  F --> G[(SQLite FTS5 Index)]
-  C -->|search (BM25)| G
-  G -->|exact snippets + heading hierarchy| C
-
-  C -->|small results only| A
+  %% Optional knowledge-base path
+  B -->|fetch_and_index(URL/MD)| E[Indexer]
+  E -->|HTML→Markdown
+  chunk by headings
+  keep code blocks| F[(SQLite FTS5)]
+  A -->|search(query)| G[Search Tool]
+  G -->|BM25 + stemming
+  exact sections/code blocks| A
+  G --> F
