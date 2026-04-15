@@ -1,0 +1,24 @@
+flowchart LR
+  A[Agent (Claude Code / MCP Client)] -->|Tool call| G[Context Gateway (MCP Server)]
+
+  subgraph Gateway
+    G --> H{Route type}
+    H -->|Data-heavy tool call| S[Sandbox Subprocess
+(run JS/TS/Python/Shell/etc)]
+    S -->|raw output stays inside sandbox| R[Derive artifact
+(parse/aggregate/extract)]
+    R -->|stdout only (small)| G
+
+    H -->|Fetch docs/URLs| F[fetch_and_index
+HTML→Markdown]
+    F --> C[Chunk by headings
+keep code blocks]
+    C --> I[SQLite FTS5 Index
++ Porter stemming]
+    I -->|BM25 search hits
+(exact snippets)| G
+  end
+
+  G -->|Small result only| A
+
+  A -->|LLM prompt includes small artifacts| L[LLM]
