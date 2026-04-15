@@ -1,26 +1,19 @@
 flowchart LR
-  subgraph Client[Agent Client / CLI]
-    A[Stable system prompt + tool schemas
-(frozen bytes)]
-    B[Dynamic messages
-(chat history, tool results)]
-    C[Out-of-band metadata
-(telemetry, git status)]
+  A[Agent Client / IDE
+(Claude Code / Cursor / custom)] -->|Request| G[Prompt Gateway / Middleware
+(enforce stable prefix)]
+  subgraph Prefix[Stable Prefix Contract]
+    P[System prompt + policies
++ tool schemas (canonical JSON)]
   end
-
-  subgraph Proxy[Cache-Aware Prompt Proxy]
-    D[Validate stable prefix hash]
-    E[Assemble request:
-Stable prefix + Dynamic segment]
-    F[Log metadata separately]
+  subgraph Suffix[Dynamic Suffix]
+    D[Conversation turns
++ tool results
++ state]
   end
-
-  subgraph Backend[Local Inference Backend]
-    G[Prefix/KV cache]
-    H[Model inference]
-  end
-
-  A --> D --> E --> G --> H
-  B --> E
-  C --> F
-  F -.not in prompt.-> H
+  G -->|Compose: P + D| M[LLM Backend
+(local llama.cpp / LM Studio / vLLM)]
+  G -->|Hash stable prefix
+alert/reject on change| G
+  A -. telemetry/git status .-> H[Out-of-band headers/logging
+or on-demand tool call]

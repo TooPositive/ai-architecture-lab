@@ -1,61 +1,68 @@
-# KV-Cache Stable Prefix Contract (Prevent Prefix-Cache Invalidation)
+# KV-Cache Stable Prefix Contract
 
 ## Source
-- **"Claude Code with local backends: KV cache invalidation caused by dynamic system-prompt injection (60-second issue) and settings.json fix"** (Reddit PSA; summarized in internal KB node `search-knowledge-7ab40724-38b2-49ad-ba9b-70f52013dd14`).
+- **Claude Code with local backends: KV cache invalidation caused by dynamic system-prompt injection (60-second issue) and settings.json fix** (Reddit PSA; indexed in our KB)
+  - URL: *not captured in KB entry* (knowledge node `search-knowledge-7ab40724-38b2-49ad-ba9b-70f52013dd14`)
 
 ## Problem
-Prefix/KV caching in local inference backends (e.g., llama.cpp servers) relies on the *initial prompt prefix staying identical* across turns. Some agent shells/CLIs mutate the system prompt every request (telemetry headers, git status, tool definitions, etc.), which breaks prefix matching, flushes the KV cache, and forces the backend to re-process a large system prompt on every tool call. This can turn sub-second turns into "60-second" latency.
+Local inference backends (e.g., llama.cpp server / LM Studio) rely heavily on **prefix matching** to reuse the model **KV cache** across consecutive calls.
+
+Some agent clients/IDEs mutate the beginning of the prompt on every request (telemetry headers, dynamic git status, changing tool definitions). This breaks prefix matching and causes **full KV cache invalidation**, forcing re-processing of a large system prompt (reported as ~20k+ tokens / ~62.6k characters of tool definitions) for even tiny follow-up tool calls. Result: extreme latency ("60-second" turns) and higher cost.
 
 ## Solution
-Introduce an explicit **Stable Prefix Contract** between your agent runtime and the inference backend:
+Create an explicit **Stable Prefix Contract** between your agent runtime and the model gateway so the initial part of every request is byte-identical across turns.
 
-1. **Split prompts into stable vs dynamic segments**
-   - Stable: system instructions, tool schemas, policies, static developer prompt.
-   - Dynamic: telemetry, git status, recent messages, tool results.
+### Architecture / Implementation details
+1. **Split prompt into two regions**:
+   - **Stable prefix** (must not change):
+     - system instructions
+     - tool schemas / function signatures
+     - static policies
+   - **Dynamic suffix** (allowed to change):
+     - conversation turns
+     - tool results
+     - state, scratchpads
 
-2. **Freeze the stable prefix bytes**
-   - Ensure the stable segment is identical across turns (byte-for-byte), including whitespace and ordering.
-   - Do not inject request-specific metadata into the system prompt.
+2. **Move dynamic metadata out of the prompt**:
+   - Telemetry headers: send via HTTP headers or logging, not system prompt text.
+   - Git status / repo context: fetch via a tool call and include only when needed, not injected every turn at the top.
 
-3. **Move changing data out of the prefix**
-   - Send changing metadata via HTTP headers, out-of-band logging, or a separate side channel.
-   - If the client cannot avoid injection, configure it (e.g., `~/.claude/settings.json` in the source) to disable/limit dynamic prompt mutations.
+3. **Pin tool definitions**:
+   - Ensure tool schema JSON is generated once at startup and referenced consistently.
+   - Avoid re-serializing maps with non-deterministic key order.
+   - Normalize whitespace and ordering for stable hashing.
 
-4. **Cache-aware tool packaging**
-   - Avoid re-sending large tool definition payloads every turn.
-   - If your framework forces this, consider a proxy that replaces repeated tool schemas with stable references (e.g., `toolset_id`) and expands server-side.
+4. **Gateway enforcement** (recommended):
+   - Add a middleware/proxy that computes a hash of the stable prefix and rejects/flags requests where the prefix changes unexpectedly.
+   - Optionally rewrite prompts to restore the last stable prefix and move diffs into the suffix.
 
-### Concrete implementation
-- **Gateway/Proxy** in front of the model server:
-  - Receives `system_static` once (or hashes it into `prefix_id`).
-  - For each request: sends the same `system_static` prefix + only the changing messages.
-  - Rejects requests where `system_static_hash` changes unexpectedly (protects caching + reproducibility).
-- **Client discipline**:
-  - Deterministically serialize tools (stable sort keys, stable JSON formatting).
-  - Keep "environment state" (git status, traces) out of system prompt.
+5. **Client-side mitigation** (per source):
+   - Adjust the client configuration (`~/.claude/settings.json`) to reduce/disable dynamic injections so prefix matching works.
 
 ## Trade-offs
-- **Pros**
-  - Large latency reduction on local backends due to KV/prefix cache reuse (source describes repeated re-processing of ~20K+ token system prompts when invalidated).
-  - Lower compute cost and higher throughput for tool-heavy agents.
-  - Improves reproducibility/debuggability: stable system prompts make prompt diffs meaningful.
-- **Cons**
-  - Less convenient: frameworks often treat system prompt as the dump site for runtime metadata.
-  - Requires careful deterministic serialization (whitespace/order changes can defeat caching).
-  - If you truly need dynamic system policy updates, you must intentionally break the contract and accept cache misses.
+- **Pros**:
+  - Large latency improvement on local backends due to KV-cache reuse.
+  - Lower cost on repeated calls where providers price cached tokens differently or where less compute is used.
+  - More predictable performance for agent loops (tool-use heavy).
+- **Cons**:
+  - You may lose "always-on" dynamic context (e.g., up-to-date git status) unless you explicitly request it via tools.
+  - Requires discipline: any change to tool schemas/system policy becomes a cache-busting event.
+  - If you enforce via gateway, you must maintain canonical prompt serialization.
 
 ## When to use / When NOT to use
-- **Use when**
-  - Running agents on **local inference** (llama.cpp/LM Studio/vLLM) where prefix caching materially affects latency.
-  - Tool-heavy workflows that would otherwise resend large tool schemas per turn.
-  - You need predictable latency for interactive shells (IDE agents, code assistants).
-- **Do NOT use when**
-  - You cannot control the client/runtime prompt construction (SaaS agent shells with hardcoded injection).
-  - The system prompt must change every request for compliance/safety reasons.
+### Use when
+- You run **local** inference servers (llama.cpp/LM Studio/vLLM) where KV cache reuse matters.
+- You have **agentic workflows** with many short successive calls (planner/executor/tool loops).
+- Your system prompt includes large tool schemas/policies that are constant across turns.
+
+### Avoid when
+- Your application legitimately needs dynamic top-of-prompt context every turn and you cannot restructure it into tool calls.
+- You use a provider/client that already handles prompt-prefix caching robustly and you have no latency/cost pressure.
 
 ## Implementation notes
-- **Languages**: any (proxy can be Node/Go/Python/.NET).
-- **Libraries**:
-  - Reverse proxy: FastAPI, Express, ASP.NET minimal APIs, Envoy/Lua.
-  - Deterministic JSON: `orjson` (Python), `System.Text.Json` with stable options (.NET), `serde_json` (Rust).
-- **Effort**: ~0.5–1 day to add a proxy + prompt-hash enforcement; longer if refactoring a framework that always re-emits tools.
+- **Languages/libraries**: any; gateway easiest in Go/Node/.NET as an HTTP reverse proxy.
+- **Effort**: ~0.5–2 days to implement canonicalization + prefix hashing + alerts; more if you add rewrite/auto-fix.
+- **Key technique**: deterministic serialization of tool schemas and stable system prompt text.
+
+## Classification
+- **NEW_PATTERN** (operational pattern: making KV-cache/prefix-caching a first-class contract, motivated by concrete failure mode in the source).
