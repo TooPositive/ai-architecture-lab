@@ -1,56 +1,68 @@
-Source: https://www.anthropic.com/engineering/multi-agent-research-system
-
 # Anthropic — Multi-agent Research system (Claude Research)
+Source: https://www.anthropic.com/engineering/multi-agent-research-system
 
 ## Company / project
 - **Company:** Anthropic
-- **Project:** Claude Research (multi-agent research feature)
-- **Article:** *How we built our multi-agent research system* (Jun 13, 2025)
-- **URL:** https://www.anthropic.com/engineering/multi-agent-research-system
+- **Project:** Claude “Research” feature (multi-agent research system)
+- **Article:** “How we built our multi-agent research system” (Jun 13, 2025)
 
 ## Problem they solved
-Build a research capability that can handle open-ended, path-dependent investigations where the steps can’t be fully predicted in advance, and where useful information exceeds a single model context window.
+Users ask open-ended questions that require **multi-step web/integration search**, iterative refinement, and synthesis across more information than fits in a single context window. A single-agent, single-pass RAG-style retrieval is too static for this class of tasks.
 
-## Architecture choices and trade-offs (from the article)
-- **Orchestrator–worker multi-agent pattern:** a lead agent (LeadResearcher) plans and coordinates, then spawns multiple subagents to search in parallel and return compressed findings.
-  - **Trade-off:** parallelism improves breadth/throughput but **burns tokens quickly**; not economical for low-value tasks.
-- **Parallel subagents with separate contexts for “compression”:** subagents explore different directions with their own context windows, then summarize back to the lead.
-  - **Trade-off:** reduces path dependency and increases coverage, but increases coordination complexity (duplication, gaps, runaway exploration).
-- **Iterative research loop + tool use:** lead agent synthesizes results and decides whether to spawn more agents or stop.
-  - **Trade-off:** agents can overshoot (search too long, spawn too many agents) without strong prompting/constraints.
-- **Memory usage to persist plan across long contexts:** lead saves plan to “Memory” to keep critical intent when long interactions risk truncation (article mentions truncation beyond ~200k tokens).
-- **Dedicated CitationAgent step:** after research, a citation agent identifies locations in documents for citations so final claims are attributable.
-  - **Trade-off:** extra step/cost, but improves trustworthiness and auditability.
-- **Prompt engineering as primary control surface:** Anthropic emphasizes prompt rules for delegation clarity, scaling effort, and avoiding failure modes (e.g., spawning 50 subagents for simple queries).
+## Architecture choices & trade-offs (as described)
+**High-level pattern:** orchestrator–worker (lead agent + parallel subagents) with post-processing for citations.
 
-## Results and metrics
-- **Internal eval:** Multi-agent system (lead Claude Opus 4 + Claude Sonnet 4 subagents) reportedly **outperformed single-agent Claude Opus 4 by 90.2%** on Anthropic’s internal research evaluation (breadth-first style queries).
-- **Token economics:** agents typically use **~4×** more tokens than chat interactions; **multi-agent systems use ~15×** more tokens than chats.
-- **Variance drivers (BrowseComp analysis):** token usage explains **80%** of performance variance; tool calls and model choice are also important; three factors explain **95%** of variance.
+- **LeadResearcher (orchestrator):**
+  - Analyzes the query, creates a strategy, and **spawns specialized subagents**.
+  - Runs an **iterative loop**: synthesize findings → decide if more research is needed → spawn/refine subagents.
+  - Persists the plan to **Memory** to survive long runs / context truncation (article cites 200k-token context and the need to keep the plan if truncated).
+
+- **Subagents (workers):**
+  - Execute **independent web searches** in parallel.
+  - Use “interleaved thinking” to judge tool results, identify gaps, and adjust queries.
+  - Return condensed findings to the LeadResearcher (parallel “compression”).
+
+- **CitationAgent:**
+  - After research completion, a separate agent processes the documents + research report to **attach citations** to specific claims.
+
+- **Prompting as a primary control surface:**
+  - They observed coordination failures (e.g., spawning ~50 subagents for simple queries; endless searching; excessive chatter).
+  - They encoded **effort-scaling heuristics** into prompts (simple fact-finding vs comparisons vs complex research).
+  - They emphasized **tool selection heuristics** and the importance of clear tool descriptions.
+
+- **Evaluation approach:**
+  - They used an **LLM judge** scoring outputs against a rubric (factual accuracy, citation accuracy, completeness, source quality, tool efficiency) and found a **single LLM call** with 0–1 scoring + pass/fail to be most consistent.
+  - They started with a **small eval set (~20 queries)** early to catch large deltas from prompt changes.
+
+- **Reliability / operations:**
+  - Agents are long-running and stateful; they built **durable execution** that can resume from errors, plus deterministic safeguards (retry logic, checkpoints).
+  - Added production tracing/observability to diagnose failure modes; they also monitor high-level interaction patterns without inspecting conversation contents (privacy).
+
+**Trade-offs explicitly called out:**
+- **Cost:** multi-agent architectures “burn through tokens fast.” They report agents use about **4×** more tokens than chat interactions, and multi-agent systems about **15×** more tokens than chats.
+- **Fit limitations:** domains requiring shared context or high inter-agent dependency (e.g., many coding tasks) are less suitable today.
+
+## Results & metrics (from the article)
+- Multi-agent system (Claude Opus 4 lead + Claude Sonnet 4 subagents) outperformed single-agent Claude Opus 4 by **90.2%** on Anthropic’s internal research eval.
+- In BrowseComp variance analysis: token usage alone explains **~80%** of performance variance; with tool calls + model choice, three factors explain **~95%**.
+- Speed: adding parallelization (subagents + parallel tool calls) cut research time by **up to 90%** for complex queries.
+- Cost: typical agent interactions use **~4×** tokens vs chat; multi-agent systems use **~15×** tokens vs chat.
 
 ## Comparison vs AgentHub (8 dimensions)
-Baseline reference: AgentHub as provided in the prompt.
+Baseline for comparison: AgentHub (RSS/Reddit/HN ingestion; Cosmos DB hybrid search; scheduled + command agents; critic; evolution engine; safety/cost gates; Azure Functions deployment).
 
-1) **Data Pipeline** — **NOT DISCLOSED**
-   - Article is about interactive research; no daily RSS/Reddit/HN ingestion pipeline described.
+| Dimension | Anthropic Research system vs us | Notes (what the article actually says) |
+|---|---|---|
+| 1. Data Pipeline | **DIFFERENT** | Focus is live research across web + Google Workspace + integrations, not a daily article ingestion pipeline. Details of their ingestion/indexing are not disclosed. |
+| 2. Retrieval | **THEM AHEAD** | Uses multi-step search with parallel subagents; contrasts with static RAG. Specific vector/BM25 infra not disclosed. |
+| 3. Agents | **THEM AHEAD** | Explicit orchestrator-worker multi-agent design with dynamic subagent spawning + parallel tool calls. |
+| 4. Evaluation | **DIFFERENT** | They describe LLM-judge rubric + small eval set early. We have a goal critic + completion review; not directly comparable. |
+| 5. Self-Improvement | **THEM AHEAD** | They mention a “tool-testing agent” that rewrites MCP tool descriptions and yielded a **40% decrease in task completion time** for future agents using the updated description. That’s a concrete self-improvement loop. |
+| 6. Safety | **NOT DISCLOSED** | They discuss privacy-aware observability; no concrete budget gates / governance workflow described in the excerpt captured. |
+| 7. Cost | **DIFFERENT** | They quantify token blow-up (4× / 15×) and note economic viability constraints; we publish explicit $ budgets and infra costs. |
+| 8. Deployment | **NOT DISCLOSED** | Mentions “deployment needs careful coordination” but no concrete CI/CD architecture or rollback mechanisms in captured text. |
 
-2) **Retrieval** — **DIFFERENT**
-   - Anthropic emphasizes **multi-step web/tool search** rather than static RAG chunk retrieval; no mention of vector/BM25 store like Cosmos.
-
-3) **Agents** — **THEM AHEAD**
-   - Production multi-agent orchestration with parallel subagents + explicit orchestrator-worker pattern and specialized roles (LeadResearcher, Subagents, CitationAgent).
-
-4) **Evaluation** — **THEM AHEAD**
-   - They report internal research evals and analysis (e.g., 90.2% improvement; variance attribution). AgentHub’s eval is described, but no comparable quantitative uplift is stated.
-
-5) **Self-Improvement** — **NOT DISCLOSED**
-   - Mentions iterative prompt improvement and simulations, but no autonomous evolution engine described.
-
-6) **Safety** — **NOT DISCLOSED**
-   - Article excerpt does not provide budget gates/rate limiting/governance specifics.
-
-7) **Cost** — **THEM AHEAD**
-   - They quantify token multipliers (4× and 15×) and discuss economic viability constraints; AgentHub has explicit $/month + budget gates, but not token-economics measurements for multi-agent usage.
-
-8) **Deployment** — **NOT DISCLOSED**
-   - No CI/CD or rollback details for their production feature in the article excerpt.
+## Confidence
+- **High** for multi-agent architecture, token multipliers, and eval metrics (directly stated in the article).
+- **Medium** for the “Memory” mechanism details (mentioned, but implementation specifics are not described).
+- **Low/Not disclosed** for storage/retrieval stack, security controls, and deployment mechanics.
