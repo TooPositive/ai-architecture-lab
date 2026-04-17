@@ -1,0 +1,30 @@
+flowchart TD
+    A[Agent (Claude Code / IDE Agent)] -->|Tool Call| H[Hook: PreToolUse]
+    H --> G[MCP Context Server (Context Mode)]
+    G -->|Run tool in sandboxed subprocess| T[Tool Execution (FS/Web/Shell)]
+    T --> O[Raw Output]
+
+    O -->|< threshold (e.g., 5KB)| S[Summarize]
+    O -->|>= threshold| C[Chunk]
+    C --> I[Index in SQLite FTS5 (BM25)]
+
+    S --> R[Return short summary]
+    I --> R2[Return: indexed confirmation + summary + handle]
+
+    A <-- R
+    A <-- R2
+
+    A -->|Targeted query| Q[ctx_search / ctx_fetch]
+    Q --> G
+    G --> I
+    I --> SNIP[Return matching snippets]
+    A <-- SNIP
+
+    %% Session continuity
+    A --> E[Events: edits, git ops, tasks, errors, decisions]
+    E --> DB[(SQLite event log)]
+
+    A -->|Compaction triggered| PC[PreCompact Hook]
+    PC --> G
+    G --> SNAP[Build prioritized session snapshot (<~2KB)]
+    A <-- SNAP
