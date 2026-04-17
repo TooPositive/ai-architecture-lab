@@ -1,19 +1,17 @@
-flowchart LR
-  A[Agent Client / IDE
-(Claude Code / Cursor / custom)] -->|Request| G[Prompt Gateway / Middleware
-(enforce stable prefix)]
-  subgraph Prefix[Stable Prefix Contract]
-    P[System prompt + policies
-+ tool schemas (canonical JSON)]
+flowchart TD
+  U[User message] --> PS[Prompt Builder]
+  subgraph PS[Prompt Builder]
+    SP[Stable Prefix
+(System + tool schemas + rules)]
+    VS[Volatile Suffix
+(user msg + retrieved ctx + tool outputs)]
   end
-  subgraph Suffix[Dynamic Suffix]
-    D[Conversation turns
-+ tool results
-+ state]
-  end
-  G -->|Compose: P + D| M[LLM Backend
-(local llama.cpp / LM Studio / vLLM)]
-  G -->|Hash stable prefix
-alert/reject on change| G
-  A -. telemetry/git status .-> H[Out-of-band headers/logging
-or on-demand tool call]
+  PS -->|SP byte-identical across turns| L[Local LLM Server
+(prefix match + KV cache reuse)]
+  PS -->|VS changes per turn| L
+  L --> A[Assistant output]
+  L --> TC[Tool call JSON]
+  TC --> T[Tools/Services]
+  T --> TO[Tool outputs]
+  TO --> VS
+  M[Telemetry/Git status] -->|logged externally (not in SP)| OBS[Observability]
