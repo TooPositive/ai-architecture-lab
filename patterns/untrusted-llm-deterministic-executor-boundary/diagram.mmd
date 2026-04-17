@@ -1,0 +1,12 @@
+flowchart LR
+  U[User goal] --> P[Planner (LLM)
+probabilistic]
+  P -->|proposed plan JSON| E[Executor
+deterministic trust boundary]
+  E -->|validated tool call| T[Tool]
+  T --> S[Service
+(DB/FS/APIs)]
+  S --> R[Result]
+  R --> P
+  E -->|reject/repair request| P
+  E -->|log validity + reject rate| OBS[Observability]
