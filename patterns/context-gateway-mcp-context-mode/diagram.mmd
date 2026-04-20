@@ -1,0 +1,19 @@
+sequenceDiagram
+  autonumber
+  participant A as Agent Runtime (LLM + Orchestrator)
+  participant MCP as MCP Client
+  participant G as Context Gateway (MCP Server)
+  participant T as External Tool (Playwright/GitHub/Logs)
+  participant S as Raw Artifact Store (optional)
+
+  A->>MCP: tool.call(args)
+  MCP->>G: tool.call(args)
+  G->>T: execute tool(args)
+  T-->>G: raw_output (large)
+  G->>S: store(raw_output)
+  S-->>G: artifact_uri
+  G-->>G: compress/extract(raw_output)
+  G-->>MCP: compact_output + artifact_uri
+  MCP-->>A: compact_output + artifact_uri
+  Note over A: Only compact_output enters
+  Note over A: the LLM context window
