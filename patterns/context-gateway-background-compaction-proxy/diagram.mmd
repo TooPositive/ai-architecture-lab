@@ -1,0 +1,18 @@
+flowchart LR
+  A[Agent
+(Claude Code/Codex/OpenHands)] -->|chat + tool messages| G[Context Gateway
+Transparent Proxy]
+  G -->|forward request| P[LLM Provider API
+(OpenAI/Anthropic/...)]
+
+  G --> T[Token Monitor]
+  T -->|>= threshold (e.g., 75%)| B[Background Compression Job]
+  B -->|summary/compaction| S[Compressed History]
+  S --> G
+
+  G -->|large tool output| TO[Tool Output Compressor]
+  TO --> G
+
+  G --> L[(Logs: history_compaction.jsonl
+ tool_output_compression.jsonl
+ telemetry.jsonl)]
