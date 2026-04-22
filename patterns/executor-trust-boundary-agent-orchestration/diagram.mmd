@@ -1,0 +1,14 @@
+flowchart TD
+  U[User] --> P[Planner (LLM): propose action JSON]
+  P --> E[Executor (Deterministic): schema validate
+extra=forbid + guardrails]
+  E -->|valid| TA[Tool Adapters]
+  E -->|invalid| R1[Reject + ask for correction]
+  TA --> S[Domain Services]
+  S --> R[Repositories]
+  R --> DB[(PostgreSQL/DB)]
+  E --> O[Observability: logs/traces/outcomes]
+  E --> C[Confidence + Critic (optional, separate model)]
+  C --> P
+  O --> U
+  S --> U
