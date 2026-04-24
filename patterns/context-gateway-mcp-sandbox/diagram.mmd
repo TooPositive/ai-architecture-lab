@@ -1,0 +1,27 @@
+flowchart TD
+  U[User / Developer] --> A[Agent / Claude Code]
+
+  subgraph CG[Context Gateway (MCP Server)]
+    H[PreToolUse hook
+    route outputs]
+    S[Sandbox Runner
+    spawn isolated subprocess]
+    KB[Local Knowledge Base
+    SQLite FTS5 + BM25
+    heading-based chunking
+    preserve code blocks]
+  end
+
+  A -->|tool call| H --> S
+  S -->|exec tool / script| T[External Tools
+  (Playwright, gh, tests, APIs, logs)]
+
+  T -->|raw output| S
+  S -->|store raw artifacts| FS[(Sandbox FS / Artifact Store)]
+
+  S -->|small stdout summary
+  (<1KB)| A
+
+  A -->|index/search request| KB
+  KB --> FS
+  KB -->|exact snippets/code blocks| A
