@@ -1,58 +1,72 @@
 [
   {
-    "name": "LLM request queueing + batching policies",
+    "name": "LLM inference quantization (8-bit/4-bit)",
     "ring": "adopt",
     "quadrant": "techniques",
     "isNew": false,
-    "description": "Production LLM serving should use explicit queueing/batching with backpressure and scheduling to manage the throughput vs latency tradeoff and protect tail latencies. Source: https://huggingface.co/blog/optimize-llm"
+    "description": "Use lower-precision weights for production inference to reduce VRAM and cost; highlighted as a key deployment technique by Hugging Face." 
   },
   {
-    "name": "Embedding quantization (binary/int8) + rescoring",
+    "name": "FlashAttention (memory-efficient attention)",
+    "ring": "adopt",
+    "quadrant": "techniques",
+    "isNew": false,
+    "description": "Memory-efficient attention implementations to improve inference efficiency; called out as a major production optimization technique." 
+  },
+  {
+    "name": "Embedding quantization (binary / int8) with rescoring",
     "ring": "trial",
     "quadrant": "techniques",
     "isNew": true,
-    "description": "Post-process embeddings to binary or int8 to cut storage (binary up to 32×) and accelerate retrieval (reported up to 32×), then rescore candidates to retain relevance (~96% retention reported with rescoring). Source: https://huggingface.co/blog/embedding-quantization"
+    "description": "Quantize stored embeddings to cut vector memory/storage (e.g., 32× for binary), optionally rescore candidates to retain retrieval quality." 
   },
   {
-    "name": "Standardized model risk scoring (RiskRubric.ai)",
+    "name": "Distributed retrieval via Ray actors for RAG",
     "ring": "trial",
-    "quadrant": "tools",
-    "isNew": true,
-    "description": "Use standardized risk evaluations with pillar scores (transparency, reliability, security, privacy, safety, reputation) and automated test/probe counts (1,000+ reliability tests; 200+ adversarial probes) to support model selection and governance. Source: https://huggingface.co/blog/riskrubric"
-  },
-  {
-    "name": "Model Context Protocol (MCP) tool servers for agents",
-    "ring": "trial",
-    "quadrant": "platforms",
-    "isNew": true,
-    "description": "Adopt MCP-compatible tool servers to standardize tool integration across agent providers; Microsoft Agent Framework highlights MCP server integration via GitHub Copilot SDK. Source: https://devblogs.microsoft.com/agent-framework/build-ai-agents-with-github-copilot-sdk-and-microsoft-agent-framework/"
-  },
-  {
-    "name": "Hybrid dense + knowledge-graph RAG stacks (LightRAG-style)",
-    "ring": "assess",
-    "quadrant": "platforms",
-    "isNew": true,
-    "description": "Packaged retrieval subsystem combining vector index + lightweight knowledge graph, hybrid retrieval, optional reranking, and integrations for RAGAS evaluation and Langfuse tracing (deployable via Docker). Source: knowledge base node 'HKUDS LightRAG: Simple and Fast Retrieval-Augmented Generation' (no URL stored)."
-  },
-  {
-    "name": "Arena-style community benchmarking for privacy guardrails",
-    "ring": "assess",
     "quadrant": "techniques",
-    "isNew": true,
-    "description": "Use blind, adversarial community testing (Elo-ranked leaderboard) to compare privacy guardrails across guardrailed LLM configurations. Source: https://huggingface.co/blog/arena-lighthouz"
+    "isNew": false,
+    "description": "Use separate retrieval workers/actors holding the index to avoid single-coordinator bottlenecks and improve multi-worker scaling in RAG fine-tuning." 
   },
   {
-    "name": "Workflow-aware safety/security guard models (AprielGuard)",
+    "name": "Request queueing/batching policies for LLM serving",
+    "ring": "adopt",
+    "quadrant": "techniques",
+    "isNew": false,
+    "description": "Queueing and batching strategies to trade latency for throughput and stabilize tail latency under concurrent load." 
+  },
+  {
+    "name": "Microsoft Agent Framework",
     "ring": "assess",
     "quadrant": "tools",
     "isNew": true,
-    "description": "Guard model designed to classify safety risks and detect adversarial attacks across prompts, multi-turn conversations, and agentic workflows (including tool calls and reasoning traces). Source: https://huggingface.co/blog/ServiceNow-AI/aprielguard"
+    "description": "Framework for building agents and graph-based workflows with state management, middleware, checkpointing, and human-in-the-loop support." 
   },
   {
-    "name": "Single-turn, narrow-scope safety classifiers",
+    "name": "Chatbot Guardrails Arena (privacy stress testing)",
+    "ring": "trial",
+    "quadrant": "platforms",
+    "isNew": true,
+    "description": "Arena-style evaluation with an Elo-rated leaderboard to compare guardrails/LLMs on privacy leakage resistance." 
+  },
+  {
+    "name": "AprielGuard (safeguard model for agentic workflows)",
+    "ring": "assess",
+    "quadrant": "tools",
+    "isNew": true,
+    "description": "ServiceNow 8B safeguard model to detect safety risks and adversarial attacks (prompt injection/jailbreaks/tool/memory manipulation) including in agentic workflows." 
+  },
+  {
+    "name": "RiskRubric.ai (standardized model risk scoring)",
+    "ring": "assess",
+    "quadrant": "platforms",
+    "isNew": true,
+    "description": "Standardized evaluation and scoring across transparency, reliability, security, privacy, safety, and reputation using automated tests and adversarial probes." 
+  },
+  {
+    "name": "Regex/static rules as primary guardrail strategy",
     "ring": "hold",
     "quadrant": "techniques",
     "isNew": false,
-    "description": "Traditional safety classifiers that assume short inputs and single user messages are misaligned with multi-turn, long-context, tool-using agent deployments. Source: https://huggingface.co/blog/ServiceNow-AI/aprielguard"
+    "description": "Brittle/non-scalable as a primary defense for modern agentic systems; cited as a workaround that does not scale." 
   }
 ]
