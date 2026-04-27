@@ -1,0 +1,13 @@
+flowchart TD
+  A[Request] --> B[Node 1: Router/Classifier
+  (cheap model)]
+  B -->|route=path1| C[Node 2: Tool Step via MCP/Webhook
+  (deterministic)]
+  B -->|route=path2| D[Node 2b: Specialist Agent
+  (strong model)]
+  C --> E[Node 3: Validator/Guardrail
+  (rules/LLM judge)]
+  D --> E
+  E --> F[Node 4: Synthesizer
+  (strong model if needed)]
+  F --> G[Result]
