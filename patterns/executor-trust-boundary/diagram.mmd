@@ -1,15 +1,17 @@
 flowchart LR
-  U[User] --> A[Agent Orchestrator]
-  A --> P[Planner (LLM)
-  produces proposed plan JSON]
-  P -->|plan JSON| E[Executor (Deterministic)
-  trust boundary]
+  U[User / Upstream App] --> P[Planner (LLM)
+  produces proposed plan]
 
-  E -->|validate + normalize| V{Schema + policy
-  checks pass?}
-  V -- No --> R[Reject w/ reasons
-  ask LLM to regenerate] --> P
-  V -- Yes --> T[Tool Adapter] --> S[Service / DB / External APIs]
+  P -->|Proposed steps (JSON)| E[Executor / Gatekeeper
+  deterministic
+  schema + policy enforcement]
 
-  S --> T --> E
-  E --> A --> U
+  E -->|Validated invocation| T[Tool Adapter]
+  T --> S[Downstream Service/API]
+
+  S --> T -->|Structured result| E
+  E -->|Tool result / rejection errors| P
+  P -->|Final response| U
+
+  E -.->|Audit log
+  (plan, validation, calls)| L[(Logs/Traces)]

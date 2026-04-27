@@ -1,60 +1,53 @@
-# Executor Trust Boundary (Untrusted LLM, Deterministic Executor)
+# Executor Trust Boundary (Untrusted-LLM Orchestration)
 
 ## Source
-- **"RUX — AI orchestration engine design with an untrusted LLM and a deterministic Executor trust boundary"** (Reddit post, summarized in internal KB)
-  - KB node: `search-knowledge-0571dd16-0cb4-49c1-982f-9ac8e1ef8d85`
+- **RUX — AI orchestration engine design with an untrusted LLM and a deterministic Executor trust boundary (Reddit post)** (knowledge base entry: `search-knowledge-0571dd16-0cb4-49c1-982f-9ac8e1ef8d85`).
+- URL: *not provided in the indexed source record* (the KB item is summarized from a Reddit post).
 
 ## Problem
-Tool-using agents often fail silently when the model hallucinates tool names/arguments or outputs an invalid action plan. In the common pattern **LLM → tool → response**, there is no explicit trust boundary: probabilistic outputs directly trigger real side effects.
+Tool-using agents frequently fail silently when the LLM hallucinates tool/action names or produces malformed tool-call payloads. Without a hard trust boundary, the LLM effectively “presses buttons” directly, making reliability, validation, and auditability hard.
 
 ## Solution
-Treat the LLM as an **untrusted planner**, and insert a **deterministic Executor** as the sole component allowed to invoke tools.
+Introduce an explicit **Executor** component as a **trust boundary** between probabilistic LLM planning and deterministic tool execution:
 
-### Architecture
-1. **Planner (LLM)** produces a *proposed* plan in a strict, machine-parseable format (e.g., JSON).
-2. **Executor (deterministic)** validates and normalizes the plan against an allowlist + schemas:
-   - Allowed tool names
-   - Required/optional args + types
-   - Policy constraints (rate limits, resource scopes, tenant permissions)
-   - Rewrites/repairs minor issues or rejects with actionable errors
-3. **Tool Adapter(s)** execute side-effecting calls only after Executor approval.
-4. **Service layer** performs real business operations.
+**Flow:** `Planner (LLM) → Executor (deterministic, schema-enforcing) → Tool → Service`
 
-### Concrete implementation details
-- Define a **Tool Contract** per tool: JSON Schema / OpenAPI / protobuf.
-- Executor performs:
-  - Schema validation (tool name + args)
-  - Authorization checks (RBAC/ABAC, per-tool scopes)
-  - Deterministic parameter defaults/normalization
-  - Replay protection + idempotency keys for side effects
-  - Observability: structured logs per plan step, rejection reasons
-- Only the Executor can call tools; the Planner cannot.
+Concrete implementation details:
+1. **Planner (LLM)** outputs a *plan proposal* (not executed directly), e.g. a list of steps with intent, target tool, and arguments.
+2. **Executor** validates and normalizes the plan against:
+   - an allowlist of tools/actions
+   - a strict JSON Schema / typed contract per tool
+   - policy checks (authZ, rate limits, PII rules, environment constraints)
+3. Executor either:
+   - rejects with structured errors (sent back to the LLM to repair), or
+   - emits a canonical tool invocation (deterministic)
+4. **Tool runner** executes the call, captures outputs, and returns results as structured data (not raw dumps unless required).
 
 ## Trade-offs
 - **Pros**
-  - Prevents silent failures from hallucinated tools/actions (Executor rejects invalid actions explicitly).
-  - Creates an audit trail of proposed vs executed actions.
-  - Enables deterministic safety and compliance controls independent of model behavior.
+  - Prevents “LLM presses buttons” failure mode; reduces hallucinated tool usage.
+  - Makes executions auditable (validated request → deterministic call).
+  - Enables reliability measurement (reject/repair rates, schema violation rates).
 - **Cons**
-  - More up-front engineering: schemas, allowlists, validation logic, idempotency.
-  - The agent may require additional turns when plans are rejected and need regeneration.
-  - Rigid schemas can reduce agent flexibility unless you evolve contracts carefully.
+  - Extra engineering: schemas, validators, policy engine, error taxonomy.
+  - More round trips when the planner needs to repair invalid plans.
+  - Tool surface must be well-specified; ad-hoc tools are harder to integrate.
 
 ## When to use / When NOT to use
-### Use when
-- Any tool call has **real side effects** (payments, account changes, infrastructure actions).
-- You need **reliability measurement** and explicit failure modes.
-- You operate in regulated environments requiring **policy enforcement + auditability**.
+**Use when:**
+- You run agents that can mutate state (tickets, payments, infrastructure changes).
+- You need compliance/audit logs of actions taken.
+- You see frequent tool-call failures due to malformed arguments or tool name drift.
 
-### Avoid when
-- The agent is purely read-only and failures are harmless, and you need maximal iteration speed.
-- You cannot commit to maintaining tool schemas/contracts (fast-changing prototypes).
+**Do NOT use when:**
+- You only do read-only retrieval and failures are low impact.
+- You are prototyping rapidly and the tool surface changes daily (unless you accept high maintenance).
 
 ## Implementation notes
-- **Languages**: works well in strongly typed stacks (C#, Java, Go, Rust) but also fine in TypeScript/Python with JSON Schema.
-- **Libraries**:
-  - JSON Schema validation: `Ajv` (TS), `jsonschema`/`pydantic` (Py), `NJsonSchema` (C#).
-  - Tool contracts: OpenAPI + codegen, or protobuf.
-- **Effort**:
-  - 1–3 days for a minimal allowlisted executor with schema validation and structured logging.
-  - 1–2 weeks to add policy engine integration, idempotency, retries, replay protection, and tooling for contract evolution.
+- Languages: works well in **TypeScript** (zod/ajv), **Python** (pydantic/jsonschema), **.NET** (System.Text.Json + validators).
+- Libraries:
+  - JSON Schema validation (ajv / jsonschema / NJsonSchema)
+  - Policy engine (OPA/Rego optional)
+  - Structured tool interface (OpenAI tool schema, Anthropic tools, MCP tool descriptors)
+- Effort: ~2–5 days for a small toolset (3–10 tools) to define schemas + executor + logging; longer for enterprise policy integration.
+
