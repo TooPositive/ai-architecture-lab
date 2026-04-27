@@ -1,49 +1,39 @@
-# Benchmark: Prompt caching via prefix-stable prompts (OpenAI Prompt Caching)
+# Benchmark report — Prompt-caching prefix stability
+
+## Classification
+**BENCHMARKABLE** — measurable improvements in *latency* and *input token cost* when repeated requests share an exact prompt prefix.
 
 ## Source
-- **Docs**: "Prompt caching" (OpenAI API docs)
-- **URL**: https://developers.openai.com/api/docs/guides/prompt-caching
+- OpenAI API Docs — **"Prompt caching"**
+- https://developers.openai.com/api/docs/guides/prompt-caching
 
 ## What metric improves?
-- **Latency**: Source claims prompt caching can **reduce latency up to 80%**.
-- **Cost (input tokens)**: Source claims it can **reduce input token costs up to 90%**.
+- **Latency**: source claims "Prompt Caching can reduce latency by up to **80%**".
+- **Cost**: source claims "input token costs by up to **90%**" (for cached prefix tokens).
 
-This does not primarily target retrieval accuracy (MRR), but it impacts **end-to-end p50 latency** and cost for repeated calls in agentic systems where prompts share large common prefixes.
+## Technique (what to implement)
+1. **Make the prompt prefix stable**: put static instructions/examples first; push variable content (timestamps, request IDs, user-specific context, dynamic tool lists, tool outputs) to the end.
+2. Ensure **tools/images** included in the prompt are identical between requests (exact-prefix requirement).
+3. Only prompts **>=1024 tokens** are eligible for caching (per source).
+4. Optionally set **`prompt_cache_key`** to influence routing and improve cache hit rates when many requests share long prefixes.
 
-## Technique summary
-Prompt Caching automatically applies when:
-- prompt length is **≥ 1024 tokens**, and
-- subsequent requests have an **exact prefix match** (cache hits only possible for exact prefix matches).
+## Theoretical comparison vs our baseline (reasoned)
+Baseline: **MRR@10=0.78**, **latency p50=45ms**, hybrid search on 246 docs (Cosmos DB vector + BM25).
 
-Optimization guidance from the source:
-- Put **static instructions/examples first** and move **dynamic content to the end**.
-- Tools/images must be identical between requests to benefit from caching.
-- Optional `prompt_cache_key` can be used to influence routing and improve hit rates.
+- **Retrieval accuracy (MRR@10)**: *unchanged* — prompt caching does not alter retrieval ranking.
+- **End-to-end latency**: if your current p50 includes a meaningful model-inference component with repeated system/tool definitions, caching can reduce that portion substantially. If we assume:
+  - p50 total = 45ms
+  - model-inference share = 30ms (example)
+  - and caching yields 50% reduction on that share (conservative vs "up to 80%")
+  - then new p50 ≈ 45ms − 15ms = **30ms** (≈33% faster).
+- **Token cost**: with stable prefixes, repeated calls in an agent loop (same system prompt + tool schemas) can see large input-token discounts on those cached tokens (claimed up to 90%).
 
-## Theoretical comparison vs our baseline
-Baseline (given):
-- Hybrid search on 246 docs (Cosmos DB vector + BM25)
-- **MRR@10 = 0.78**
-- **Latency p50 = 45ms**
+## How to benchmark (recommended)
+- Workload: run a fixed agent flow with identical system prompt + tool schemas for N requests; vary only user input.
+- Metrics: p50/p95 latency, input tokens billed, cache hit rate (if exposed), cost/request.
+- A/B: "stable prefix" vs "unstable prefix" (inject timestamp into first 256 tokens).
 
-Comparison reasoning:
-- If your pipeline includes LLM calls whose prompts reuse a long stable prefix (system prompt, tool schema, guardrails, examples), Prompt Caching reduces **compute time** on the model side because requests are routed to servers that recently processed the same prompt prefix.
-- The baseline 45ms appears retrieval-side; Prompt Caching affects the generation-side. In realistic systems, generation latency is typically much larger than retrieval latency, so an **up to 80% reduction in generation-side latency** can dominate end-to-end improvements.
-
-### Expected measurable outcomes (experiment design)
-Measure before/after with identical traffic distribution:
-- LLM **end-to-end latency** p50/p95
-- LLM **effective $/request** (input token billed cost)
-- **Cache hit rate** (% requests with cached prefix)
-
-To be comparable across systems, normalize by:
-- fixed model
-- fixed prompt length
-- fixed request rate (docs warn about overflow above ~15 req/min per prefix+key combination)
-
-## Claimed improvements (from source)
-- Latency reduction: **up to 80%**
-- Input token cost reduction: **up to 90%**
-
-## Confidence
-High. Directly cited from OpenAI API documentation; exact improvements are stated as "up to" and will depend on prompt reuse and routing dynamics.
+## Notes / limits from the source
+- Cache hits require **exact prefix matches**.
+- Caching applies after a prefix hash (often first ~256 tokens) and is automatic for eligible prompts.
+- High request rates can "overflow" routing and reduce cache effectiveness (source mentions ~15 req/min as an approximate threshold where overflow may begin).
