@@ -1,0 +1,13 @@
+flowchart LR
+  A[Agent Runtime
+  (e.g., Claude Code)] -->|MCP request| G[MCP Context Gateway
+  (compress + store raw)]
+  G -->|MCP request| T[Tool / MCP Server]
+  T -->|Raw output (large)| G
+
+  G -->|Store raw| B[(Blob Store / Cache)]
+  G -->|Compressed summary + handles| A
+
+  A -->|If needed: fetch slice| G
+  G -->|Retrieve raw by handle| B
+  G -->|Focused excerpt| A
