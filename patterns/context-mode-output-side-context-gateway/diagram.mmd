@@ -1,0 +1,34 @@
+sequenceDiagram
+  autonumber
+  participant User
+  participant Agent as Claude Code / Agent
+  participant Hook as PreToolUse Hook
+  participant CM as Context Mode (MCP Server)
+  participant SB as Sandbox Subprocess
+  participant Tools as External Tools/CLIs
+  participant KB as SQLite FTS5 KB
+
+  User->>Agent: Task / Request
+  Agent->>Hook: Invoke MCP tool
+  Hook->>CM: Route tool call + args
+  CM->>SB: Spawn isolated subprocess
+  SB->>Tools: Execute (Playwright/gh/logs/etc.)
+  Tools-->>SB: Raw output (large blobs)
+  SB->>SB: Extract/transform -> small stdout
+  SB-->>CM: stdout only (compact artifact)
+  CM-->>Agent: Compact result (<~1KB)
+
+  opt Fetch and index docs
+    Agent->>CM: fetch_and_index(url)
+    CM->>SB: Fetch HTML -> Markdown
+    SB->>KB: Chunk by headings, preserve code blocks
+    KB-->>CM: Indexed content
+    CM-->>Agent: Index confirmation
+  end
+
+  opt Search KB
+    Agent->>CM: search(query)
+    CM->>KB: BM25 search (FTS5)
+    KB-->>CM: Exact snippets + heading path
+    CM-->>Agent: Snippets (not raw pages)
+  end
